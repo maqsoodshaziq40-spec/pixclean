@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ChromaCut Studio — AI Background Remover & Photo Studio</title>
+    <meta name="description" content="AI background removal powered by ONNX Runtime Web with precision masking, backdrop replacement, shadows, outlines, color adjustments, crop, and PNG/JPG/WebP export." />
+    <meta property="og:title" content="ChromaCut Studio — AI Background Remover & Photo Studio" />
+    <meta property="og:description" content="AI background removal powered by ONNX Runtime Web with precision masking, backdrop replacement, shadows, outlines, color adjustments, crop, and PNG/JPG/WebP export." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Nunito:wght@400;500;600;700;800&family=Quicksand:wght@600;700&display=swap" rel="stylesheet" />
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('chromacut-theme');
+          var theme = saved === 'dark' || saved === 'light' ? saved : 'light';
+          document.documentElement.dataset.theme = theme;
+        } catch (e) {
+          document.documentElement.dataset.theme = 'light';
+        }
+      })();
+    </script>
+  </head>
+  <body class="bg-[var(--bg-app)] text-[var(--text-primary)] antialiased selection:bg-[#E06D3B]/20 selection:text-[var(--text-accent)] overflow-hidden">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

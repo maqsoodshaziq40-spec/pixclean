@@ -1,0 +1,327 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Quicksand", "Nunito", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  /* Warm, soothing off-white & linen paper palette */
+  --bg-app: #faf6f0;
+  --bg-panel: #fffdf9;
+  --bg-panel-translucent: rgba(255, 253, 249, 0.9);
+  --bg-panel-alt: #f7f2ea;
+  --bg-card: #ffffff;
+  --bg-card-hover: #fffaf4;
+  --bg-subtle: #f3ece2;
+  --bg-subtle-hover: #eae0d2;
+  --bg-input: #f8f3eb;
+  --bg-input-focus: #ffffff;
+
+  /* Soft Sunset Orange / Terracotta accents */
+  --bg-accent-soft: #fff0e5;
+  --bg-accent-soft-hover: #ffe3d0;
+  --bg-accent-tint: #fff7f1;
+  --bg-hero-from: #fff4ea;
+  --bg-hero-via: #fffdf9;
+  --bg-hero-to: #f1f8f2;
+  --bg-overlay: rgba(44, 34, 26, 0.34);
+  --bg-stage-overlay: rgba(250, 246, 240, 0.86);
+
+  --stage-dot: rgba(154, 132, 112, 0.16);
+  --stage-glow-a: rgba(232, 125, 75, 0.09);
+  --stage-glow-b: rgba(76, 154, 112, 0.075);
+
+  --border-main: #ebe2d5;
+  --border-card: #e8ded0;
+  --border-divider: #f0e7da;
+  --border-strong: #d8cbb8;
+  --border-accent: #f4c6ae;
+  --border-accent-dashed: #eab090;
+
+  /* Warm espresso inks — gentle on the eyes */
+  --text-primary: #2c241e;
+  --text-secondary: #5a4e44;
+  --text-muted: #8a7c70;
+  --text-accent: #c55324;
+  --text-accent-bright: #e06d3b;
+
+  --slider-track: #e8dfd2;
+  --slider-thumb-bg: #fffdf9;
+  --switch-off: #d7cab8;
+
+  /* Warm Sage / Botanical Green */
+  --emerald-bg: #ebf7ef;
+  --emerald-bg-hover: #dcf0e3;
+  --emerald-border: #b4dfc3;
+  --emerald-text: #27734c;
+
+  /* Soft Terracotta Rose for destructive / warning states */
+  --rose-bg: #fdf0ee;
+  --rose-bg-hover: #fae1dd;
+  --rose-border: #f3c4bc;
+  --rose-text: #b84232;
+
+  --teal-metric: #2e7d57;
+
+  /* Soft, pillowy warm shadows */
+  --shadow-card: 0 3px 12px rgba(92, 66, 42, 0.055), 0 1px 2px rgba(92, 66, 42, 0.03);
+  --shadow-float: 0 10px 28px rgba(92, 66, 42, 0.09), 0 2px 6px rgba(92, 66, 42, 0.04);
+  --shadow-canvas: 0 22px 54px rgba(74, 52, 32, 0.13), 0 4px 14px rgba(74, 52, 32, 0.06);
+  --shadow-modal: 0 28px 70px rgba(56, 38, 22, 0.2), 0 4px 16px rgba(56, 38, 22, 0.08);
+  --shadow-accent: 0 4px 14px rgba(224, 109, 59, 0.16);
+
+  --checker-sm-a: #efe9e0;
+  --checker-sm-b: #fffdf9;
+  --scroll-thumb: rgba(138, 124, 112, 0.24);
+  --scroll-thumb-hover: rgba(224, 109, 59, 0.45);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  /* Cozy warm espresso-charcoal dark theme */
+  --bg-app: #171412;
+  --bg-panel: #201c19;
+  --bg-panel-translucent: rgba(32, 28, 25, 0.88);
+  --bg-panel-alt: #1b1715;
+  --bg-card: #27221e;
+  --bg-card-hover: #302924;
+  --bg-subtle: #2c2621;
+  --bg-subtle-hover: #362f29;
+  --bg-input: #1e1a17;
+  --bg-input-focus: #27221e;
+
+  --bg-accent-soft: rgba(238, 126, 74, 0.18);
+  --bg-accent-soft-hover: rgba(238, 126, 74, 0.28);
+  --bg-accent-tint: rgba(238, 126, 74, 0.1);
+  --bg-hero-from: #2d221c;
+  --bg-hero-via: #26211d;
+  --bg-hero-to: #1e2620;
+  --bg-overlay: rgba(12, 9, 7, 0.72);
+  --bg-stage-overlay: rgba(23, 20, 18, 0.84);
+
+  --stage-dot: rgba(204, 184, 164, 0.12);
+  --stage-glow-a: rgba(238, 126, 74, 0.12);
+  --stage-glow-b: rgba(88, 186, 132, 0.08);
+
+  --border-main: #332c26;
+  --border-card: #3b332c;
+  --border-divider: #2e2823;
+  --border-strong: #4d433a;
+  --border-accent: rgba(242, 142, 94, 0.42);
+  --border-accent-dashed: rgba(242, 142, 94, 0.48);
+
+  --text-primary: #f6efe8;
+  --text-secondary: #cdc1b5;
+  --text-muted: #988b7f;
+  --text-accent: #f7a77e;
+  --text-accent-bright: #f28a58;
+
+  --slider-track: #3b332c;
+  --slider-thumb-bg: #fff8f2;
+  --switch-off: #483e36;
+
+  --emerald-bg: rgba(84, 178, 124, 0.16);
+  --emerald-bg-hover: rgba(84, 178, 124, 0.26);
+  --emerald-border: rgba(108, 198, 146, 0.36);
+  --emerald-text: #72cf9a;
+
+  --rose-bg: rgba(226, 102, 86, 0.16);
+  --rose-bg-hover: rgba(226, 102, 86, 0.26);
+  --rose-border: rgba(238, 128, 114, 0.36);
+  --rose-text: #f3968a;
+
+  --teal-metric: #72cf9a;
+  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.26);
+  --shadow-float: 0 12px 32px rgba(0, 0, 0, 0.42);
+  --shadow-canvas: 0 26px 64px rgba(0, 0, 0, 0.56);
+  --shadow-modal: 0 32px 80px rgba(0, 0, 0, 0.65);
+  --shadow-accent: 0 4px 18px rgba(238, 126, 74, 0.25);
+
+  --checker-sm-a: #26211d;
+  --checker-sm-b: #332c26;
+  --scroll-thumb: rgba(168, 152, 138, 0.24);
+  --scroll-thumb-hover: rgba(242, 138, 88, 0.5);
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-sans);
+    background-color: var(--bg-app);
+    color: var(--text-primary);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* Warm craft-studio canvas backdrop with gentle paper dots & sunlit ambiance */
+.studio-stage-bg {
+  background-color: var(--bg-app);
+  background-image:
+    radial-gradient(64% 58% at 22% 14%, var(--stage-glow-a), transparent 72%),
+    radial-gradient(56% 52% at 82% 84%, var(--stage-glow-b), transparent 72%),
+    radial-gradient(var(--stage-dot) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 24px 24px;
+  background-position: 0 0, 0 0, 12px 12px;
+}
+
+/* Soft, tactile warm terracotta primary button that feels delightful to press */
+.studio-cta {
+  background-image: linear-gradient(135deg, #ee8250 0%, #df6835 55%, #cc5625 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    0 8px 20px -5px rgba(208, 88, 38, 0.38),
+    0 2px 6px rgba(208, 88, 38, 0.16);
+  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.studio-cta:hover:not(:disabled) {
+  filter: brightness(1.04);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 12px 26px -5px rgba(208, 88, 38, 0.46),
+    0 3px 8px rgba(208, 88, 38, 0.2);
+  transform: translateY(-1px);
+}
+
+.studio-cta:active:not(:disabled) {
+  transform: translateY(1px) scale(0.98);
+  box-shadow:
+    inset 0 1px 2px rgba(120, 42, 12, 0.18),
+    0 4px 10px -3px rgba(208, 88, 38, 0.32);
+}
+
+@keyframes studio-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+
+.progress-indeterminate {
+  width: 38%;
+  animation: studio-indeterminate 1.25s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Warm neutral transparency checkerboards */
+.checkerboard-light {
+  background-color: #f0ebe3;
+  background-image:
+    linear-gradient(45deg, #fffdf9 25%, transparent 25%),
+    linear-gradient(-45deg, #fffdf9 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #fffdf9 75%),
+    linear-gradient(-45deg, transparent 75%, #fffdf9 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+}
+
+.checkerboard-dark {
+  background-color: #211d1a;
+  background-image:
+    linear-gradient(45deg, #2d2723 25%, transparent 25%),
+    linear-gradient(-45deg, #2d2723 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #2d2723 75%),
+    linear-gradient(-45deg, transparent 75%, #2d2723 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+}
+
+.checkerboard-sm {
+  background-color: var(--checker-sm-a);
+  background-image:
+    linear-gradient(45deg, var(--checker-sm-b) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--checker-sm-b) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--checker-sm-b) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--checker-sm-b) 75%);
+  background-size: 10px 10px;
+  background-position: 0 0, 0 5px, 5px -5px, -5px 0;
+}
+
+/* Soft, tactile rounded range sliders */
+input[type="range"].studio-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--slider-track);
+  outline: none;
+  cursor: pointer;
+}
+
+input[type="range"].studio-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 17px;
+  height: 17px;
+  border-radius: 9999px;
+  background: var(--slider-thumb-bg);
+  border: 2.5px solid #e06d3b;
+  box-shadow: 0 2px 8px rgba(224, 109, 59, 0.32);
+  cursor: pointer;
+  transition: transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+input[type="range"].studio-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 0 0 4px rgba(224, 109, 59, 0.16), 0 3px 10px rgba(224, 109, 59, 0.42);
+}
+
+input[type="range"].studio-slider::-moz-range-thumb {
+  width: 17px;
+  height: 17px;
+  border-radius: 9999px;
+  background: var(--slider-thumb-bg);
+  border: 2.5px solid #e06d3b;
+  box-shadow: 0 2px 8px rgba(224, 109, 59, 0.32);
+  cursor: pointer;
+  transition: transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Clean custom scrollbars */
+.studio-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.studio-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.studio-scroll::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 9999px;
+}
+
+.studio-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-cta,
+  input[type="range"].studio-slider::-webkit-slider-thumb,
+  input[type="range"].studio-slider::-moz-range-thumb {
+    transition: none;
+  }
+}

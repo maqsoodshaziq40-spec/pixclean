@@ -1,0 +1,6 @@
+{
+  "name": "ChromaCut Studio",
+  "description": "Local browser-based AI background removal, precision masking, backdrop replacement, effects, and batch export studio powered by ONNX.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
