@@ -87,6 +87,7 @@ export interface AdjustmentSettings {
   clarity: number; // 0..100 (0 = neutral)
   sharpness: number; // 0..100 (0 = neutral)
   denoise: number; // 0..100 (0 = neutral)
+  blur: number; // 0..20 px (0 = neutral)
   applyTo: 'subject' | 'all';
 }
 
@@ -216,6 +217,7 @@ export function createDefaultEdits(width: number, height: number): ImageEditSett
       clarity: 0,
       sharpness: 0,
       denoise: 0,
+      blur: 0,
       applyTo: 'subject',
     },
     transform: {

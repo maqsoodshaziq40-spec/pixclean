@@ -24,6 +24,7 @@ import { BatchFilmstrip } from './components/BatchFilmstrip';
 import { ExportModal } from './components/ExportModal';
 import { InspectorPanel } from './components/InspectorPanel';
 import { LeftToolRail } from './components/LeftToolRail';
+import { QuickEditBar } from './components/QuickEditBar';
 import { ShortcutsModal } from './components/ShortcutsModal';
 import { StudioCanvas } from './components/StudioCanvas';
 import {
@@ -213,87 +214,7 @@ export default function App() {
     [refreshThumbnail]
   );
 
-  // Add uploaded files
-  const handleAddFiles = useCallback(
-    async (fileList: FileList | File[]) => {
-      const files = Array.from(fileList).filter((f) => f.type.startsWith('image/'));
-      if (files.length === 0) {
-        showToast('Please select a valid JPG, PNG, or WebP image.', 'error');
-        return;
-      }
-
-      const loaded: StudioImageItem[] = [];
-      for (const file of files) {
-        try {
-          const item = await loadBlobToStudioItem(file, file.name, file.size);
-          loaded.push(item);
-        } catch (err) {
-          showToast(
-            err instanceof Error ? err.message : `Failed to load ${file.name}`,
-            'error'
-          );
-        }
-      }
-
-      if (loaded.length > 0) {
-        setItems((prev) => [...prev, ...loaded]);
-        setActiveId(loaded[0].id);
-        setViewMode('result');
-        setActiveTool('select');
-        setActiveTab('cutout');
-        // Start warming up the AI model in the Web Worker right away while user previews the image
-        preloadBackgroundModel();
-        showToast(
-          loaded.length === 1
-            ? `Loaded "${loaded[0].name}" (${loaded[0].width}×${loaded[0].height}) — ready`
-            : `Added ${loaded.length} images (optimized ≤1024px)`
-        );
-      }
-    },
-    [showToast]
-  );
-
-  // Load built-in sample subject
-  const handleLoadSample = useCallback(
-    async (preset: SampleSubjectPreset) => {
-      try {
-        const blob = await preset.renderToBlob();
-        const item = await loadBlobToStudioItem(blob, preset.filename, blob.size);
-        setItems((prev) => [...prev, item]);
-        setActiveId(item.id);
-        setViewMode('result');
-        setActiveTool('select');
-        setActiveTab('cutout');
-        preloadBackgroundModel();
-        showToast(`Loaded sample "${preset.name}"`);
-      } catch (err) {
-        showToast(err instanceof Error ? err.message : 'Failed to load sample', 'error');
-      }
-    },
-    [showToast]
-  );
-
-  // Close a specific image tab (used by Close Tab button next to Export + filmstrip trash)
-  const handleCloseItem = useCallback(
-    (idToRemove: string) => {
-      setItems((prev) => {
-        const idx = prev.findIndex((i) => i.id === idToRemove);
-        if (idx === -1) return prev;
-        const next = prev.filter((i) => i.id !== idToRemove);
-        if (activeId === idToRemove) {
-          const fallback = next[Math.min(idx, next.length - 1)] ?? null;
-          setActiveId(fallback ? fallback.id : null);
-          if (!fallback) {
-            setActiveTool('select');
-          }
-        }
-        return next;
-      });
-    },
-    [activeId]
-  );
-
-  // Run REAL RMBG-1.4 ONNX background removal on a target image ID
+  // Run 100% client-side @imgly/background-removal from CDN on a target image ID
   const runAiRemovalForItem = useCallback(
     async (targetId: string): Promise<boolean> => {
       const target = itemsRef.current.find((i) => i.id === targetId);
@@ -318,7 +239,7 @@ export default function App() {
         const latest = itemsRef.current.find((i) => i.id === targetId);
         if (!latest) return false;
 
-        // Immediately apply alpha mask and flip state to 'done' on the very same frame (no 100% delay!)
+        // Immediately apply alpha mask and flip state to 'done' on the very same frame
         writeAlphaBytes(latest.maskCanvas, alphaMask);
         latest.maskRevision += 1;
 
@@ -362,6 +283,96 @@ export default function App() {
       }
     },
     [patchItem, pushHistoryEntry, refreshThumbnail, activeId, showToast]
+  );
+
+  // Add uploaded files and automatically remove background in browser -> PNG preview
+  const handleAddFiles = useCallback(
+    async (fileList: FileList | File[]) => {
+      const files = Array.from(fileList).filter((f) => f.type.startsWith('image/'));
+      if (files.length === 0) {
+        showToast('Please select a valid JPG, PNG, or WebP image.', 'error');
+        return;
+      }
+
+      const loaded: StudioImageItem[] = [];
+      for (const file of files) {
+        try {
+          const item = await loadBlobToStudioItem(file, file.name, file.size);
+          loaded.push(item);
+        } catch (err) {
+          showToast(
+            err instanceof Error ? err.message : `Failed to load ${file.name}`,
+            'error'
+          );
+        }
+      }
+
+      if (loaded.length > 0) {
+        const nextItems = [...itemsRef.current, ...loaded];
+        itemsRef.current = nextItems;
+        setItems(nextItems);
+        setActiveId(loaded[0].id);
+        setViewMode('result');
+        setActiveTool('select');
+        setActiveTab('cutout');
+
+        // Automatically remove background in browser on upload so user sees loading -> PNG preview
+        const first = loaded[0];
+        if (!first.hasRemovedBg) {
+          void runAiRemovalForItem(first.id).then((ok) => {
+            if (ok) {
+              showToast('Background removed — transparent PNG ready');
+            }
+          });
+        } else {
+          preloadBackgroundModel();
+          showToast(`Loaded "${first.name}" (${first.width}×${first.height}) — transparent PNG ready`);
+        }
+      }
+    },
+    [showToast, runAiRemovalForItem]
+  );
+
+  // Load built-in sample subject
+  const handleLoadSample = useCallback(
+    async (preset: SampleSubjectPreset) => {
+      try {
+        const blob = await preset.renderToBlob();
+        const item = await loadBlobToStudioItem(blob, preset.filename, blob.size);
+        const nextItems = [...itemsRef.current, item];
+        itemsRef.current = nextItems;
+        setItems(nextItems);
+        setActiveId(item.id);
+        setViewMode('result');
+        setActiveTool('select');
+        setActiveTab('cutout');
+        preloadBackgroundModel();
+        showToast(`Loaded sample "${preset.name}"`);
+      } catch (err) {
+        showToast(err instanceof Error ? err.message : 'Failed to load sample', 'error');
+      }
+    },
+    [showToast]
+  );
+
+  // Close a specific image tab (used by Close Tab button next to Export + filmstrip trash)
+  const handleCloseItem = useCallback(
+    (idToRemove: string) => {
+      setItems((prev) => {
+        const idx = prev.findIndex((i) => i.id === idToRemove);
+        if (idx === -1) return prev;
+        const next = prev.filter((i) => i.id !== idToRemove);
+        if (activeId === idToRemove) {
+          const fallback = next[Math.min(idx, next.length - 1)] ?? null;
+          setActiveId(fallback ? fallback.id : null);
+          if (!fallback) {
+            setActiveTool('select');
+          }
+        }
+        return next;
+      });
+    },
+    [activeId]
   );
 
   const handleTriggerActiveAiRemove = useCallback(async () => {
@@ -1092,6 +1103,16 @@ export default function App() {
               onApplyCrop={handleApplyCrop}
               onCancelCrop={() => setActiveTool('select')}
               fitSignal={fitSignal}
+            />
+
+            <QuickEditBar
+              item={activeItem}
+              activeTool={activeTool}
+              onSelectTool={(tool) => {
+                setActiveTool(tool);
+                if (tool === 'crop') setActiveTab('transform');
+              }}
+              onUpdateEdits={handleUpdateEdits}
             />
 
             <BatchFilmstrip

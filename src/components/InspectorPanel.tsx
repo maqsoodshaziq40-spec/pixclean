@@ -120,6 +120,7 @@ const ENHANCE_PRESETS: EnhancePreset[] = [
       clarity: 42,
       sharpness: 62,
       denoise: 12,
+      blur: 0,
     },
   },
   {
@@ -138,6 +139,7 @@ const ENHANCE_PRESETS: EnhancePreset[] = [
       clarity: 12,
       sharpness: 24,
       denoise: 34,
+      blur: 0,
     },
   },
   {
@@ -156,6 +158,7 @@ const ENHANCE_PRESETS: EnhancePreset[] = [
       clarity: 36,
       sharpness: 46,
       denoise: 10,
+      blur: 0,
     },
   },
   {
@@ -174,6 +177,7 @@ const ENHANCE_PRESETS: EnhancePreset[] = [
       clarity: 18,
       sharpness: 22,
       denoise: 60,
+      blur: 0,
     },
   },
 ];
@@ -271,7 +275,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       item.edits.adjustments.vibrance !== 0 ||
       item.edits.adjustments.clarity > 0 ||
       item.edits.adjustments.sharpness > 0 ||
-      item.edits.adjustments.denoise > 0);
+      item.edits.adjustments.denoise > 0 ||
+      item.edits.adjustments.blur > 0);
 
   const panelBody = (
     <div className="flex flex-col h-full bg-[var(--bg-panel)] text-[var(--text-primary)] transition-colors">
@@ -1362,6 +1367,23 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                     }
                     onCommit={() => onUpdateEdits((e) => e, 'Denoise')}
                   />
+
+                  <StudioSlider
+                    label="Blur"
+                    value={item.edits.adjustments.blur}
+                    min={0}
+                    max={20}
+                    step={0.5}
+                    unit="px"
+                    defaultValue={0}
+                    onChange={(blur) =>
+                      onUpdateEdits((e) => ({
+                        ...e,
+                        adjustments: { ...e.adjustments, blur },
+                      }))
+                    }
+                    onCommit={() => onUpdateEdits((e) => e, 'Blur')}
+                  />
                 </div>
 
                 {/* Light & Tone Card */}
@@ -1554,6 +1576,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                             clarity: 0,
                             sharpness: 0,
                             denoise: 0,
+                            blur: 0,
                           },
                         }),
                         'Reset Enhancements'

@@ -412,6 +412,7 @@ function buildFilterString(adj: ImageEditSettings['adjustments']): string {
   if (adj.saturation !== 100) parts.push(`saturate(${adj.saturation}%)`);
   if (adj.warmth > 0) parts.push(`sepia(${(adj.warmth * 0.65).toFixed(1)}%)`);
   if (adj.warmth < 0) parts.push(`hue-rotate(${(adj.warmth * 0.4).toFixed(1)}deg)`);
+  if (adj.blur > 0) parts.push(`blur(${adj.blur.toFixed(1)}px)`);
   return parts.length > 0 ? parts.join(' ') : 'none';
 }
 
@@ -802,7 +803,7 @@ function getOrBuildSubjectLayer(
   const { matting, adjustments } = item.edits;
   const useDecontam = matting.decontaminate && item.hasRemovedBg && !fastPreview;
   const maskKey = `${item.maskRevision}_${matting.feather}_${matting.edgeSmooth}_${matting.maskShift}_${matting.invertMask}`;
-  const adjKey = `${adjustments.applyTo}_${adjustments.brightness}_${adjustments.contrast}_${adjustments.saturation}_${adjustments.warmth}_${adjustments.exposure}_${adjustments.highlights}_${adjustments.shadows}_${adjustments.vibrance}_${adjustments.clarity}_${adjustments.sharpness}_${adjustments.denoise}_${fastPreview}`;
+  const adjKey = `${adjustments.applyTo}_${adjustments.brightness}_${adjustments.contrast}_${adjustments.saturation}_${adjustments.warmth}_${adjustments.exposure}_${adjustments.highlights}_${adjustments.shadows}_${adjustments.vibrance}_${adjustments.clarity}_${adjustments.sharpness}_${adjustments.denoise}_${adjustments.blur}_${fastPreview}`;
   const subjectKey = `${maskKey}_${useDecontam}_${adjKey}`;
 
   const cached = pipelineCacheMap.get(item);

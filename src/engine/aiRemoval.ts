@@ -1,257 +1,193 @@
+import {
+  preload as imglyPreload,
+  removeBackground as imglyRemoveBackground,
+  type Config as ImglyConfig,
+} from '@imgly/background-removal';
 import type { ProcessingProgress } from '../types/studio';
 
-const MODEL_ENDPOINT = '/api/model/rmbg-1.4.onnx';
-const MODEL_CACHE_NAME = 'chromacut-rmbg-onnx-v1';
-const MODEL_INPUT_SIZE = 1024;
+/**
+ * Official @imgly/background-removal CDN (Cloudflare, CORS Access-Control-Allow-Origin: *).
+ * 100% client-side in the browser — zero backend, zero /api calls, Netlify static hosting ready.
+ */
+const IMGLY_CDN_PUBLIC_PATH =
+  'https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/';
+
+/**
+ * Shared base config passed to both preload() and removeBackground() so @imgly's internal
+ * JSON.stringify(config) memoization reuses the exact same ONNX session across runs.
+ */
+const BASE_IMGLY_CONFIG: Omit<ImglyConfig, 'progress'> = {
+  publicPath: IMGLY_CDN_PUBLIC_PATH,
+  model: 'isnet_quint8',
+  device: 'cpu',
+  output: {
+    format: 'image/png',
+    quality: 1,
+  },
+};
 
 export interface BgRemovalResult {
   alphaMask: Uint8Array;
-  engine: 'browser-onnx' | 'server-onnx';
+  engine: 'imgly-cdn';
 }
 
-interface PendingJob {
-  resolve: (result: BgRemovalResult) => void;
-  reject: (err: Error) => void;
-  onProgress?: (progress: ProcessingProgress) => void;
+let preloadPromise: Promise<void> | null = null;
+
+function formatMb(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-type WorkerInboundMessage =
-  | { type: 'preload' }
-  | {
-      type: 'remove';
-      id: number;
-      targetWidth: number;
-      targetHeight: number;
-      imageBitmap?: ImageBitmap;
-      rgba1024Buffer?: ArrayBuffer;
-    };
+function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('Could not prepare photo for background removal'));
+      },
+      'image/png'
+    );
+  });
+}
 
-type WorkerOutboundMessage =
-  | { type: 'progress'; id: number; progress: ProcessingProgress }
-  | { type: 'result'; id: number; alphaBuffer: ArrayBuffer; engine: 'browser-onnx' | 'server-onnx' }
-  | { type: 'error'; id: number; message: string }
-  | { type: 'preloaded'; ok: boolean };
-
-let bgWorker: Worker | null = null;
-let workerUnavailable = false;
-let preloadRequested = false;
-let nextJobId = 1;
-const pendingJobs = new Map<number, PendingJob>();
-
-function getOrCreateWorker(): Worker | null {
-  if (workerUnavailable || typeof Worker === 'undefined') {
-    return null;
+async function extractAlphaFromPngBlob(
+  pngBlob: Blob,
+  targetWidth: number,
+  targetHeight: number
+): Promise<Uint8Array> {
+  const outCanvas = document.createElement('canvas');
+  outCanvas.width = targetWidth;
+  outCanvas.height = targetHeight;
+  const ctx = outCanvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) {
+    throw new Error('2D Canvas context unavailable');
   }
-  if (bgWorker) return bgWorker;
+
+  let bitmap: ImageBitmap | null = null;
+  let objectUrl: string | null = null;
 
   try {
-    const worker = new Worker(new URL('./bgRemoval.worker.ts', import.meta.url), {
-      type: 'module',
-    });
-
-    worker.onmessage = (event: MessageEvent<WorkerOutboundMessage>) => {
-      const msg = event.data;
-      if (msg.type === 'preloaded') return;
-
-      const job = pendingJobs.get(msg.id);
-      if (!job) return;
-
-      if (msg.type === 'progress') {
-        job.onProgress?.(msg.progress);
-      } else if (msg.type === 'result') {
-        pendingJobs.delete(msg.id);
-        job.resolve({
-          alphaMask: new Uint8Array(msg.alphaBuffer),
-          engine: msg.engine,
-        });
-      } else if (msg.type === 'error') {
-        pendingJobs.delete(msg.id);
-        job.reject(new Error(msg.message));
+    if (typeof createImageBitmap === 'function') {
+      try {
+        bitmap = await createImageBitmap(pngBlob);
+      } catch {
+        bitmap = null;
       }
-    };
+    }
 
-    worker.onerror = (err) => {
-      console.warn('BG removal worker error:', err);
-      const failure = new Error('Background worker encountered an error');
-      for (const [, job] of pendingJobs) {
-        job.reject(failure);
-      }
-      pendingJobs.clear();
-      worker.terminate();
-      bgWorker = null;
-      workerUnavailable = true;
-    };
+    ctx.clearRect(0, 0, targetWidth, targetHeight);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
-    bgWorker = worker;
-    return worker;
-  } catch (err) {
-    console.warn('Failed to spawn BG removal worker:', err);
-    workerUnavailable = true;
-    return null;
+    if (bitmap) {
+      ctx.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
+    } else {
+      objectUrl = URL.createObjectURL(pngBlob);
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const el = new Image();
+        el.onload = () => resolve(el);
+        el.onerror = () => reject(new Error('Could not read cutout PNG result'));
+        el.src = objectUrl!;
+      });
+      ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+    }
+
+    const { data } = ctx.getImageData(0, 0, targetWidth, targetHeight);
+    const alphaMask = new Uint8Array(targetWidth * targetHeight);
+    for (let i = 0, p = 3; i < alphaMask.length; i++, p += 4) {
+      alphaMask[i] = data[p];
+    }
+    return alphaMask;
+  } finally {
+    if (bitmap) bitmap.close();
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
   }
 }
 
 /**
- * Starts loading & initializing the RMBG-1.4 ONNX session inside the Web Worker
- * in the background (e.g. right after image upload) so Remove Background runs immediately.
+ * Warms up @imgly/background-removal model & WASM assets from CDN in the browser.
+ * Safe to call multiple times; deduplicated via preloadPromise.
  */
 export function preloadBackgroundModel(): void {
-  if (preloadRequested) return;
-  const worker = getOrCreateWorker();
-  if (!worker) return;
-  preloadRequested = true;
-  worker.postMessage({ type: 'preload' } satisfies WorkerInboundMessage);
+  if (preloadPromise) return;
+  preloadPromise = imglyPreload({ ...BASE_IMGLY_CONFIG }).catch(() => {
+    preloadPromise = null;
+  });
 }
 
 /**
- * If the model is already cached in Browser Cache Storage from an earlier visit,
- * immediately warm up the Web Worker session on app startup (zero network traffic).
+ * No-op startup hook retained for compatibility; @imgly leverages the browser's HTTP cache
+ * and internal session memoization automatically without hitting any backend API.
  */
 export async function preloadCachedModelIfAvailable(): Promise<void> {
-  if (preloadRequested || typeof caches === 'undefined') return;
-  try {
-    const cache = await caches.open(MODEL_CACHE_NAME);
-    const cached = await cache.match(MODEL_ENDPOINT);
-    if (cached) {
-      preloadBackgroundModel();
-    }
-  } catch {
-    // Ignore storage restriction
-  }
-}
-
-function extract1024RgbaBuffer(sourceCanvas: HTMLCanvasElement): ArrayBuffer {
-  const prep = document.createElement('canvas');
-  prep.width = MODEL_INPUT_SIZE;
-  prep.height = MODEL_INPUT_SIZE;
-  const ctx = prep.getContext('2d', { willReadFrequently: true });
-  if (!ctx) throw new Error('2D Canvas context unavailable');
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(sourceCanvas, 0, 0, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
-  const { data } = ctx.getImageData(0, 0, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
-  return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
-}
-
-async function runDirectServerFallback(
-  sourceCanvas: HTMLCanvasElement,
-  onProgress?: (progress: ProcessingProgress) => void
-): Promise<BgRemovalResult> {
-  onProgress?.({ stage: 'Working on it, give me a second...', percent: null });
-
-  const rgba = new Uint8ClampedArray(extract1024RgbaBuffer(sourceCanvas));
-  const pixelCount = MODEL_INPUT_SIZE * MODEL_INPUT_SIZE;
-  const rgb = new Uint8Array(pixelCount * 3);
-  for (let i = 0, p = 0, q = 0; i < pixelCount; i++, p += 4, q += 3) {
-    rgb[q] = rgba[p];
-    rgb[q + 1] = rgba[p + 1];
-    rgb[q + 2] = rgba[p + 2];
-  }
-
-  const resp = await fetch('/api/remove-bg-mask', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/octet-stream' },
-    body: rgb.buffer as ArrayBuffer,
-  });
-
-  if (!resp.ok) {
-    const errTxt = await resp.text().catch(() => '');
-    throw new Error(`AI background removal failed (HTTP ${resp.status}): ${errTxt}`);
-  }
-
-  const alpha1024 = new Uint8Array(await resp.arrayBuffer());
-  const targetW = sourceCanvas.width;
-  const targetH = sourceCanvas.height;
-
-  if (targetW === MODEL_INPUT_SIZE && targetH === MODEL_INPUT_SIZE) {
-    return { alphaMask: alpha1024, engine: 'server-onnx' };
-  }
-
-  const small = document.createElement('canvas');
-  small.width = MODEL_INPUT_SIZE;
-  small.height = MODEL_INPUT_SIZE;
-  const sCtx = small.getContext('2d')!;
-  const imgData = sCtx.createImageData(MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
-  for (let i = 0, p = 0; i < alpha1024.length; i++, p += 4) {
-    imgData.data[p] = 255;
-    imgData.data[p + 1] = 255;
-    imgData.data[p + 2] = 255;
-    imgData.data[p + 3] = alpha1024[i];
-  }
-  sCtx.putImageData(imgData, 0, 0);
-
-  const full = document.createElement('canvas');
-  full.width = targetW;
-  full.height = targetH;
-  const fCtx = full.getContext('2d', { willReadFrequently: true })!;
-  fCtx.imageSmoothingEnabled = true;
-  fCtx.imageSmoothingQuality = 'high';
-  fCtx.drawImage(small, 0, 0, targetW, targetH);
-
-  const fullData = fCtx.getImageData(0, 0, targetW, targetH).data;
-  const alphaMask = new Uint8Array(targetW * targetH);
-  for (let i = 0, p = 3; i < alphaMask.length; i++, p += 4) {
-    alphaMask[i] = fullData[p];
-  }
-
-  return { alphaMask, engine: 'server-onnx' };
+  // Intentionally empty on initial page load so no unnecessary CDN bytes are fetched
+  // until the user actually uploads or opens a photo.
 }
 
 /**
- * Runs real RMBG-1.4 ONNX background removal inside a dedicated Web Worker
- * so the UI never freezes or hangs. Returns the alpha mask immediately upon completion.
+ * Runs 100% client-side AI background removal directly in the browser using
+ * @imgly/background-removal loaded from CDN. Zero server / API / Netlify Function calls.
  */
 export async function runOnnxBackgroundRemoval(
   sourceCanvas: HTMLCanvasElement,
   onProgress?: (progress: ProcessingProgress) => void
 ): Promise<BgRemovalResult> {
-  const worker = getOrCreateWorker();
-  if (!worker) {
-    return runDirectServerFallback(sourceCanvas, onProgress);
-  }
-
-  const id = nextJobId++;
   const targetWidth = sourceCanvas.width;
   const targetHeight = sourceCanvas.height;
 
-  const canTransferBitmap =
-    typeof OffscreenCanvas !== 'undefined' && typeof createImageBitmap === 'function';
-
-  let payload: WorkerInboundMessage;
-  let transferables: Transferable[];
-
-  if (canTransferBitmap) {
-    const bitmap = await createImageBitmap(sourceCanvas);
-    payload = {
-      type: 'remove',
-      id,
-      targetWidth,
-      targetHeight,
-      imageBitmap: bitmap,
-    };
-    transferables = [bitmap];
-  } else {
-    const rgba1024Buffer = extract1024RgbaBuffer(sourceCanvas);
-    payload = {
-      type: 'remove',
-      id,
-      targetWidth,
-      targetHeight,
-      rgba1024Buffer,
-    };
-    transferables = [rgba1024Buffer];
-  }
-
-  preloadRequested = true;
-
-  return new Promise<BgRemovalResult>((resolve, reject) => {
-    pendingJobs.set(id, { resolve, reject, onProgress });
-    worker.postMessage(payload, transferables);
-  }).catch((err) => {
-    // If the worker crashed during startup, seamlessly fall back so removal still succeeds
-    if (workerUnavailable) {
-      return runDirectServerFallback(sourceCanvas, onProgress);
-    }
-    throw err;
+  onProgress?.({
+    stage: 'Preparing your photo...',
+    percent: null,
   });
+
+  const inputBlob = await canvasToPngBlob(sourceCanvas);
+
+  const config: ImglyConfig = {
+    ...BASE_IMGLY_CONFIG,
+    progress: (key: string, current: number, total: number) => {
+      if (!onProgress) return;
+
+      if (key.startsWith('fetch:')) {
+        if (total > 0) {
+          const pct = Math.min(99, Math.max(0, Math.round((current / total) * 100)));
+          const isModel = key.includes('/models/');
+          onProgress({
+            stage: isModel ? 'Downloading AI model (cached for next time)...' : 'Loading browser engine...',
+            percent: pct,
+            detail: `${formatMb(current)} / ${formatMb(total)}`,
+          });
+        } else {
+          onProgress({
+            stage: 'Loading AI model from CDN...',
+            percent: null,
+          });
+        }
+        return;
+      }
+
+      if (key === 'compute:inference') {
+        onProgress({
+          stage: 'Removing background in browser...',
+          percent: null,
+        });
+      } else if (key === 'compute:mask' || key === 'compute:encode') {
+        onProgress({
+          stage: 'Finishing transparent PNG...',
+          percent: null,
+        });
+      } else {
+        onProgress({
+          stage: 'Working on it, give me a second...',
+          percent: null,
+        });
+      }
+    },
+  };
+
+  const resultPngBlob = await imglyRemoveBackground(inputBlob, config);
+  const alphaMask = await extractAlphaFromPngBlob(resultPngBlob, targetWidth, targetHeight);
+
+  return {
+    alphaMask,
+    engine: 'imgly-cdn',
+  };
 }
